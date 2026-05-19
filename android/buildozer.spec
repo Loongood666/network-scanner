@@ -14,9 +14,9 @@ android.permissions = INTERNET,ACCESS_NETWORK_STATE,ACCESS_WIFI_STATE,READ_EXTER
 # For camera/brute force network operations
 android.api = 30
 android.minapi = 21
-android.ndk = 23b
+android.ndk = 28c
 android.sdk = 30
-android.build_tools_version = 30.0.3
+android.build_tools = 30.0.3
 
 # App metadata
 android.arch = arm64-v8a
