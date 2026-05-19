@@ -27,7 +27,7 @@ jobs:
           kivy/buildozer:latest \
           bash -c "
             cp -r /home/user/hostdir/* . &&
-            python3 buildozer_patch.py &&
+            sed -i 's/self.check_root()/pass  # patched/' /home/user/.venv/lib/python3.14/site-packages/buildozer/__init__.py &&
             buildozer -v android debug
           "
 
