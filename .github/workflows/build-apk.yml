@@ -22,14 +22,10 @@ jobs:
     - name: Build APK inside Docker
       working-directory: android
       run: |
-        docker run --rm \
+        docker run --rm --user user \
           -v "${{ github.workspace }}/android:/home/user/hostdir" \
           kivy/buildozer:latest \
-          bash -c "
-            cp -r /home/user/hostdir/* . &&
-            sed -i 's/self.check_root()/pass  # patched/' /home/user/.venv/lib/python3.14/site-packages/buildozer/__init__.py &&
-            buildozer -v android debug
-          "
+          bash -c "cp -r /home/user/hostdir/* . && buildozer -v android debug"
 
     - name: Fix permissions (Docker writes as root)
       if: always()
