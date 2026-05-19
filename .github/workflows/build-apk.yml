@@ -26,9 +26,8 @@ jobs:
           -v "${{ github.workspace }}/android:/home/user/hostdir" \
           kivy/buildozer:latest \
           bash -c "
-            # Patch buildozer to skip root check
-            find /home/user/.venv -name '__init__.py' -path '*/buildozer/*' | xargs sed -i 's/os.geteuid() == 0/False/' &&
             cp -r /home/user/hostdir/* . &&
+            python3 buildozer_patch.py &&
             buildozer -v android debug
           "
 
