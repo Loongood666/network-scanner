@@ -9,60 +9,42 @@ on:
 
 jobs:
   build:
-    name: Build APK with Buildozer
+    name: Build APK (Docker)
     runs-on: ubuntu-22.04
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+    - name: Pull Buildozer Docker image
+      run: docker pull kivy/buildozer:latest
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          git zip unzip openjdk-17-jdk \
-          python3-pip python3-dev python3-venv \
-          build-essential curl wget \
-          libbz2-dev libncurses5-dev libffi-dev \
-          libreadline-dev libsqlite3-dev \
-          zlib1g-dev liblzma-dev \
-          android-sdk
-
-    - name: Accept Android SDK licenses
+    - name: Build APK inside Docker
       working-directory: android
       run: |
-        yes | buildozer android sdk_license || true
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
-        echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo -e "\nd56f5187479451eabf01fb78af6dfcb131a6481e" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo -e "\n24333f8a63b6825ea9c5514f83c2829b004d1fee" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        docker run --rm \
+          -v "${{ github.workspace }}/android:/home/user/hostdir" \
+          kivy/buildozer:latest \
+          bash -c "cp -r /home/user/hostdir/* . && buildozer -v android debug"
 
-
-    - name: Install Buildozer and Cython
+    - name: Fix permissions (Docker writes as root)
+      if: always()
       run: |
-        pip3 install --user cython==0.29.19
-        pip3 install --user buildozer
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-    - name: Build APK
-      working-directory: android
-      run: |
-        buildozer -v android debug
+        sudo chown -R runner:runner android/bin/ || true
+        ls -lh android/bin/*.apk 2>/dev/null || echo "No APK found"
 
     - name: Upload APK artifact
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: app-debug.apk
         path: android/bin/*.apk
         retention-days: 30
 
-    - name: Show APK info
-      if: always()
+    - name: Show Buildozer log on failure
+      if: failure()
       run: |
-        ls -lh android/bin/*.apk || echo "No APK found"
+        echo "=== Buildozer log ==="
         cat android/.buildozer/logs/*.log 2>/dev/null || true
+        echo "=== Last 100 lines of build output ==="
+        tail -100 android/buildozer_output.log 2>/dev/null || true
