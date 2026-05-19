@@ -15,76 +15,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Build with Buildozer action
+      uses: ArtifexSoftware/buildozer-action@v2
       with:
-        python-version: '3.10'
-
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          git zip unzip openjdk-17-jdk \
-          python3-pip python3-dev python3-venv \
-          build-essential curl wget unzip \
-          libbz2-dev libncurses5-dev libffi-dev \
-          libreadline-dev libsqlite3-dev \
-          zlib1g-dev liblzma-dev autoconf libtool pkg-config \
-          python3-setuptools
-
-    - name: Set up Java 17
-      run: |
-        sudo update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java
-        sudo update-alternatives --set javac /usr/lib/jvm/java-17-openjdk-amd64/bin/javac
-        echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
-        echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_PATH
-        java -version
-
-    - name: Set up Android SDK
-      run: |
-        mkdir -p $HOME/android-sdk/cmdline-tools
-        cd $HOME/android-sdk/cmdline-tools
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip -q commandlinetools-linux-11076708_latest.zip
-        mv cmdline-tools latest
-        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-        echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-      env:
-        JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-
-    - name: Install Android SDK components
-      run: |
-        yes | sdkmanager --licenses > /dev/null 2>&1 || true
-        sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3"
-        sdkmanager --update
-      env:
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        ANDROID_HOME: ${{ env.ANDROID_HOME }}
-
-    - name: Install Cython and Buildozer
-      run: |
-        pip3 install --user cython==0.29.19
-        pip3 install --user buildozer
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-    - name: Update buildozer.spec to use existing SDK
-      working-directory: android
-      run: |
-        sed -i 's/^android.sdk = .*/android.sdk = 30/' buildozer.spec
-        echo "" >> buildozer.spec
-        echo "# Use existing SDK" >> buildozer.spec
-        echo "android.sdk_path = $HOME/android-sdk" >> buildozer.spec
-
-    - name: Build APK
-      working-directory: android
-      timeout-minutes: 60
-      env:
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        ANDROID_HOME: ${{ env.ANDROID_HOME }}
-      run: |
-        buildozer -v android debug
+        workdir: android
+        buildozer-version: stable
 
     - name: Upload APK artifact
       if: success()
@@ -93,14 +28,3 @@ jobs:
         name: app-debug.apk
         path: android/bin/*.apk
         retention-days: 30
-
-    - name: Show build log on failure
-      if: failure()
-      working-directory: android
-      run: |
-        echo "=== buildozer version ==="
-        buildozer --version || true
-        echo "=== Android SDK contents ==="
-        ls -la $HOME/android-sdk/ || true
-        echo "=== last 200 lines of build output ==="
-        tail -200 .buildozer/logs/*.log 2>/dev/null || true
