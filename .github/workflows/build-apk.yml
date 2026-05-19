@@ -3,8 +3,6 @@ name: Build Android APK
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -17,34 +15,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Build APK inside Docker (auto-answer prompts with yes)
+    - name: Build APK inside Docker
       working-directory: android
       run: |
         docker run --rm \
           -v "${{ github.workspace }}/android:/app" \
           kivy/buildozer:latest \
-          bash -c " \
-            cd /app && \
-            echo 'Auto-answering all prompts...' && \
-            yes | buildozer -v android debug \
-          "
+          python3 /app/patch_and_build.py
 
-    - name: Fix permissions (Docker writes as root)
+    - name: Fix permissions
       if: always()
-      run: |
-        sudo chmod -R 755 android/bin/ || true
-        ls -lh android/bin/*.apk 2>/dev/null || echo "No APK found yet"
+      run: sudo chmod -R 755 android/bin/ || true
 
-    - name: Upload APK artifact
+    - name: Upload APK
       if: success()
       uses: actions/upload-artifact@v4
       with:
         name: app-debug.apk
         path: android/bin/*.apk
         retention-days: 30
-
-    - name: Show build log on failure
-      if: failure()
-      run: |
-        echo "=== Buildozer log ==="
-        cat android/.buildozer/logs/*.log 2>/dev/null || true
