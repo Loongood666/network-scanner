@@ -11,14 +11,40 @@ jobs:
   build:
     name: Build APK
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Build APK with Buildozer
-      uses: ArtemTarasov/action-buildozer@v1
+    - name: Build APK inside Docker (auto-answer prompts with yes)
+      working-directory: android
+      run: |
+        docker run --rm \
+          -v "${{ github.workspace }}/android:/app" \
+          kivy/buildozer:latest \
+          bash -c " \
+            cd /app && \
+            echo 'Auto-answering all prompts...' && \
+            yes | buildozer -v android debug \
+          "
+
+    - name: Fix permissions (Docker writes as root)
+      if: always()
+      run: |
+        sudo chmod -R 755 android/bin/ || true
+        ls -lh android/bin/*.apk 2>/dev/null || echo "No APK found yet"
+
+    - name: Upload APK artifact
+      if: success()
+      uses: actions/upload-artifact@v4
       with:
-        workdir: android
-        buildozer-version: '1.5.0'
-        python-version: '3.10'
+        name: app-debug.apk
+        path: android/bin/*.apk
+        retention-days: 30
+
+    - name: Show build log on failure
+      if: failure()
+      run: |
+        echo "=== Buildozer log ==="
+        cat android/.buildozer/logs/*.log 2>/dev/null || true
