@@ -25,7 +25,7 @@ jobs:
         docker run --rm \
           -v "${{ github.workspace }}/android:/home/user/hostdir" \
           kivy/buildozer:latest \
-          bash -c "cp -r /home/user/hostdir/* . && buildozer -v android debug"
+          bash -c "cp -r /home/user/hostdir/* . && yes y | buildozer -v android debug"
 
     - name: Fix permissions (Docker writes as root)
       if: always()
